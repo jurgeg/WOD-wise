@@ -1,0 +1,10 @@
+# Supabase CLI configuration
+
+[api]
+enabled = true
+port = 54321
+
+[functions.claude-proxy]
+# Disable gateway JWT verification - we handle auth ourselves in the function
+# This allows the function to receive the user's JWT and validate it manually
+verify_jwt = false

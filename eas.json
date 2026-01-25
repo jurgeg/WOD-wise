@@ -1,0 +1,42 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yugtwhojewtpqebqrptu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1Z3R3aG9qZXd0cHFlYnFycHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5MTYyOTUsImV4cCI6MjA4NDQ5MjI5NX0.qKQ44D2QUNYFklf-gkOyPzqAKMkuMr7lAH5mc2uEMsU"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yugtwhojewtpqebqrptu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1Z3R3aG9qZXd0cHFlYnFycHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5MTYyOTUsImV4cCI6MjA4NDQ5MjI5NX0.qKQ44D2QUNYFklf-gkOyPzqAKMkuMr7lAH5mc2uEMsU"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yugtwhojewtpqebqrptu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1Z3R3aG9qZXd0cHFlYnFycHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5MTYyOTUsImV4cCI6MjA4NDQ5MjI5NX0.qKQ44D2QUNYFklf-gkOyPzqAKMkuMr7lAH5mc2uEMsU"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "gjurrjens@yahoo.co.uk",
+        "ascAppId": "6758055705",
+        "appleTeamId": "GZM8LX32G5"
+      }
+    }
+  }
+}
