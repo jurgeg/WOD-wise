@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -53,9 +55,26 @@ export default function StrengthScreen() {
     return numericLifts;
   };
 
-  const handleContinue = () => {
-    saveLiftsToStore(getNumericLiftsInLbs());
-    router.push('/onboarding/limitations');
+  const handleFinishOnboarding = async () => {
+    setIsSaving(true);
+    const numericLifts = getNumericLiftsInLbs();
+    saveLiftsToStore(numericLifts);
+
+    const liftsData = Object.entries(numericLifts).map(([liftName, weightLbs]) => ({
+      liftName,
+      weightLbs,
+    }));
+
+    const { error } = await saveStrengthNumbers(liftsData);
+    setIsSaving(false);
+
+    if (error) {
+      Alert.alert('Save Failed', error.message);
+    } else {
+      Alert.alert('Profile Complete!', 'Your fitness profile has been saved. You can now get personalized WOD strategies.', [
+        { text: 'Start Using WODwise', onPress: () => router.replace('/(tabs)') }
+      ]);
+    }
   };
 
   const handleSave = async () => {
@@ -83,9 +102,17 @@ export default function StrengthScreen() {
   const filledCount = Object.values(lifts).filter((v) => v && parseInt(v) > 0).length;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: '75%' }]} />
+        <View style={[styles.progressFill, { width: '100%' }]} />
       </View>
 
       <Text style={styles.title}>What are your 1RM numbers?</Text>
@@ -138,12 +165,17 @@ export default function StrengthScreen() {
             </>
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continue to Limitations</Text>
-          <FontAwesome name="arrow-right" size={16} color={Colors.text} />
+        <TouchableOpacity
+          style={[styles.continueButton, isSaving && styles.buttonDisabled]}
+          onPress={handleFinishOnboarding}
+          disabled={isSaving}
+        >
+          <Text style={styles.continueButtonText}>Finish Setup</Text>
+          <FontAwesome name="check" size={16} color={Colors.text} />
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -151,6 +183,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   contentContainer: {
     padding: 20,

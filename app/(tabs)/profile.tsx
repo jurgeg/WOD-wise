@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Colors } from '@/lib/constants';
 import { getCurrentUser, getSession, signOut } from '@/lib/supabase';
 import { useSettingsStore } from '@/store/settings';
+import { useOnboardingStore } from '@/store/onboarding';
 
 export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
+    useOnboardingStore.getState().reset();
     setIsLoggedIn(false);
     setUserEmail(null);
   };
@@ -116,14 +118,6 @@ export default function ProfileScreen() {
           <View style={styles.menuItemLeft}>
             <FontAwesome name="trophy" size={18} color={Colors.primary} />
             <Text style={styles.menuItemText}>1RM Numbers</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color={Colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/onboarding/limitations')}>
-          <View style={styles.menuItemLeft}>
-            <FontAwesome name="exclamation-triangle" size={18} color={Colors.warning} />
-            <Text style={styles.menuItemText}>Limitations & Injuries</Text>
           </View>
           <FontAwesome name="chevron-right" size={14} color={Colors.textMuted} />
         </TouchableOpacity>

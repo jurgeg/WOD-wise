@@ -38,7 +38,7 @@ export default function SkillsScreen() {
     const skillsData = Object.entries(skills).map(([movementName, skillLevel]) => {
       let category: string | undefined;
       for (const [catKey, catValue] of Object.entries(MOVEMENT_CATEGORIES)) {
-        if (catValue.movements.includes(movementName)) {
+        if ((catValue.movements as readonly string[]).includes(movementName)) {
           category = catKey;
           break;
         }

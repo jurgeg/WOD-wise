@@ -15,9 +15,10 @@ import { loadUserProfile, saveWodHistory } from '@/lib/supabase';
 import type { ParsedWorkout, WodStrategy } from '@/lib/types';
 
 export default function StrategyScreen() {
-  const { workout, savedStrategy } = useLocalSearchParams<{
+  const { workout, savedStrategy, injury } = useLocalSearchParams<{
     workout: string;
     savedStrategy?: string;
+    injury?: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [strategy, setStrategy] = useState<WodStrategy | null>(null);
@@ -58,13 +59,14 @@ export default function StrategyScreen() {
 
       try {
         // Load user profile from Supabase
-        const { profile, error: profileError } = await loadUserProfile();
+        const { profile } = await loadUserProfile();
 
-        const userProfile = profile || {
-          experienceLevel: 'intermediate',
-          skills: {},
-          strengthNumbers: {},
-          limitations: [],
+        // Build profile for strategy generation
+        const userProfile = {
+          experienceLevel: profile?.experienceLevel || 'intermediate',
+          skills: profile?.skills || {},
+          strengthNumbers: profile?.strengthNumbers || {},
+          limitations: injury && injury.trim() ? [`injury: ${injury.trim()}`] : [],
         };
 
         const strategyResult = await generateStrategyAPI(parsed, userProfile);
@@ -78,7 +80,7 @@ export default function StrategyScreen() {
     };
 
     fetchStrategy();
-  }, [workout, savedStrategy]);
+  }, [workout, savedStrategy, injury]);
 
   const handleSave = async () => {
     // Save to Supabase history

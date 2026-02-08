@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import { Colors } from '@/lib/constants';
 import { Spacing, BorderRadius } from '@/lib/design';
+import { getSession } from '@/lib/supabase';
+import { useOnboardingStore } from '@/store/onboarding';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -12,6 +14,22 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  const hydrateFromSupabase = useOnboardingStore((s) => s.hydrateFromSupabase);
+  const profileLoaded = useOnboardingStore((s) => s._profileLoaded);
+
+  useEffect(() => {
+    if (profileLoaded) return;
+
+    const loadProfile = async () => {
+      const { session } = await getSession();
+      if (session) {
+        await hydrateFromSupabase();
+      }
+    };
+
+    loadProfile();
+  }, [profileLoaded, hydrateFromSupabase]);
+
   return (
     <Tabs
       screenOptions={{
