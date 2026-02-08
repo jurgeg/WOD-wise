@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/lib/constants';
 import { Typography, Spacing, BorderRadius, Shadows, Gradients } from '@/lib/design';
+import { getUserWorkoutStats } from '@/lib/supabase';
 import {
   GradientButton,
   Card,
@@ -34,10 +35,18 @@ function getGreeting(): string {
 
 export default function HomeScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [completedDays, setCompletedDays] = useState<number[]>([]);
 
-  // Mock data - in production this would come from user's history
-  const streak = 3;
-  const completedDays = [0, 1, 2]; // Mon, Tue, Wed
+  const loadStats = useCallback(async () => {
+    const { streak: s, completedDays: days } = await getUserWorkoutStats();
+    setStreak(s);
+    setCompletedDays(days);
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const pickImageFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -163,12 +172,23 @@ export default function HomeScreen() {
       {selectedImage ? (
         <Card variant="elevated" padding="none" style={styles.imageCard}>
           <Image source={{ uri: selectedImage }} style={styles.selectedImage} resizeMode="contain" />
-          <TouchableOpacity style={styles.clearButton} onPress={clearImage}>
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={clearImage}
+            accessibilityRole="button"
+            accessibilityLabel="Remove selected image"
+          >
             <FontAwesome name="times" size={16} color={Colors.text} />
           </TouchableOpacity>
         </Card>
       ) : (
-        <TouchableOpacity onPress={showImageOptions} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={showImageOptions}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Capture or select a workout image"
+          accessibilityHint="Opens options to take a photo, choose from library, or paste from clipboard"
+        >
           <Card variant="gradient-border" padding="large" style={styles.placeholder}>
             <View style={styles.placeholderContent}>
               <View style={styles.placeholderIconContainer}>

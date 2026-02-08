@@ -64,6 +64,8 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              accessibilityLabel="Email address"
+              textContentType="emailAddress"
             />
           </View>
 
@@ -77,10 +79,14 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              accessibilityLabel="Password"
+              textContentType="password"
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeButton}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
             >
               <FontAwesome
                 name={showPassword ? 'eye-slash' : 'eye'}
@@ -90,7 +96,12 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity
+            style={styles.forgotPassword}
+            onPress={() => router.push('/(auth)/forgot-password')}
+            accessibilityRole="link"
+            accessibilityLabel="Forgot password"
+          >
             <Text style={styles.forgotPasswordText}>Forgot password?</Text>
           </TouchableOpacity>
 
@@ -98,6 +109,9 @@ export default function LoginScreen() {
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            accessibilityState={{ disabled: isLoading }}
           >
             {isLoading ? (
               <ActivityIndicator color={Colors.text} />
@@ -167,7 +181,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   eyeButton: {
-    padding: 8,
+    padding: 12,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   forgotPassword: {
     alignSelf: 'flex-end',

@@ -1,8 +1,9 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, View } from 'react-native';
+import React, { useRef, useCallback } from 'react';
+import { Animated, TouchableWithoutFeedback, Text, StyleSheet, ViewStyle, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/lib/constants';
-import { Typography, BorderRadius, Spacing, Shadows, Gradients } from '@/lib/design';
+import { Typography, BorderRadius, Spacing, Shadows, Gradients, Animation } from '@/lib/design';
+import { haptics } from '@/lib/haptics';
 
 interface GradientButtonProps {
   title: string;
@@ -25,6 +26,33 @@ export function GradientButton({
   style,
   fullWidth = false,
 }: GradientButtonProps) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePress = useCallback(() => {
+    if (!disabled) {
+      haptics.light();
+      onPress();
+    }
+  }, [disabled, onPress]);
+
   const gradientConfig = {
     primary: Gradients.primary,
     secondary: Gradients.secondary,
@@ -50,30 +78,38 @@ export function GradientButton({
   }[size];
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
+    <TouchableWithoutFeedback
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled}
-      activeOpacity={0.8}
-      style={[
-        styles.container,
-        !disabled && shadowStyle,
-        disabled && styles.disabled,
-        fullWidth && styles.fullWidth,
-        style,
-      ]}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
     >
-      <LinearGradient
-        colors={disabled ? [Colors.surfaceLight, Colors.surface] : [...gradientConfig.colors]}
-        start={gradientConfig.start}
-        end={gradientConfig.end}
-        style={[styles.gradient, sizeStyles]}
+      <Animated.View
+        style={[
+          styles.container,
+          !disabled && shadowStyle,
+          disabled && styles.disabled,
+          fullWidth && styles.fullWidth,
+          { transform: [{ scale: scaleAnim }] },
+          style,
+        ]}
       >
-        {icon && <View style={styles.iconWrapper}>{icon}</View>}
-        <Text style={[styles.text, textSize, disabled && styles.textDisabled]}>
-          {title}
-        </Text>
-      </LinearGradient>
-    </TouchableOpacity>
+        <LinearGradient
+          colors={disabled ? [Colors.surfaceLight, Colors.surface] : [...gradientConfig.colors]}
+          start={gradientConfig.start}
+          end={gradientConfig.end}
+          style={[styles.gradient, sizeStyles]}
+        >
+          {icon && <View style={styles.iconWrapper}>{icon}</View>}
+          <Text style={[styles.text, textSize, disabled && styles.textDisabled]}>
+            {title}
+          </Text>
+        </LinearGradient>
+      </Animated.View>
+    </TouchableWithoutFeedback>
   );
 }
 

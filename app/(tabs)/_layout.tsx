@@ -71,6 +71,7 @@ export default function TabLayout() {
         options={{
           title: 'WOD',
           tabBarIcon: ({ color }) => <TabBarIcon name="bolt" color={color} />,
+          tabBarAccessibilityLabel: 'Analyze a workout',
           headerShown: false,
         }}
       />
@@ -79,6 +80,7 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => <TabBarIcon name="history" color={color} />,
+          tabBarAccessibilityLabel: 'Workout history',
           headerTitle: 'Workout History',
         }}
       />
@@ -87,6 +89,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          tabBarAccessibilityLabel: 'Your profile and settings',
           headerTitle: 'My Profile',
         }}
       />

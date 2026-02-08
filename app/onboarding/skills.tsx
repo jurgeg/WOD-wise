@@ -13,6 +13,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Colors, MOVEMENT_CATEGORIES, SKILL_LEVELS } from '@/lib/constants';
 import { useOnboardingStore } from '@/store/onboarding';
 import { saveMovementSkills } from '@/lib/supabase';
+import { haptics } from '@/lib/haptics';
 
 type SkillRating = 1 | 2 | 3 | 4 | 5;
 
@@ -23,15 +24,11 @@ export default function SkillsScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSkill = (movement: string, rating: SkillRating) => {
+    haptics.selection();
     setSkills((prev) => ({ ...prev, [movement]: rating }));
   };
 
-  const handleContinue = () => {
-    saveSkillsToStore(skills);
-    router.push('/onboarding/strength');
-  };
-
-  const handleSave = async () => {
+  const handleSaveAndContinue = async () => {
     setIsSaving(true);
     saveSkillsToStore(skills);
 
@@ -52,9 +49,7 @@ export default function SkillsScreen() {
     if (error) {
       Alert.alert('Save Failed', error.message);
     } else {
-      Alert.alert('Saved!', 'Your movement skills have been updated.', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      router.push('/onboarding/strength');
     }
   };
 
@@ -135,22 +130,18 @@ export default function SkillsScreen() {
           You can update these anytime in your profile settings
         </Text>
         <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-          onPress={handleSave}
+          style={[styles.continueButton, isSaving && styles.buttonDisabled]}
+          onPress={handleSaveAndContinue}
           disabled={isSaving}
         >
           {isSaving ? (
             <ActivityIndicator color={Colors.text} />
           ) : (
             <>
-              <FontAwesome name="check" size={16} color={Colors.text} />
-              <Text style={styles.continueButtonText}>Save</Text>
+              <Text style={styles.continueButtonText}>Save & Continue</Text>
+              <FontAwesome name="arrow-right" size={16} color={Colors.text} />
             </>
           )}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continue to Strength</Text>
-          <FontAwesome name="arrow-right" size={16} color={Colors.text} />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -160,9 +151,9 @@ export default function SkillsScreen() {
 function getSkillColor(rating: SkillRating): string {
   const colors = {
     1: Colors.error,
-    2: '#e67e22',
+    2: Colors.primaryDark,
     3: Colors.warning,
-    4: '#27ae60',
+    4: Colors.successDark,
     5: Colors.success,
   };
   return colors[rating];
@@ -261,12 +252,12 @@ const styles = StyleSheet.create({
   },
   ratingButtons: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   ratingButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -288,15 +279,6 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 8,
     gap: 12,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.success,
-    paddingVertical: 16,
-    borderRadius: 12,
   },
   buttonDisabled: {
     opacity: 0.6,

@@ -10,7 +10,7 @@ import {
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { router } from 'expo-router';
 import { Colors } from '@/lib/constants';
-import { getCurrentUser, getSession, signOut } from '@/lib/supabase';
+import { getCurrentUser, getSession, signOut, getApiUsageToday } from '@/lib/supabase';
 import { useSettingsStore } from '@/store/settings';
 import { useOnboardingStore } from '@/store/onboarding';
 
@@ -18,6 +18,9 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [usageUsed, setUsageUsed] = useState(0);
+  const [usageLimit, setUsageLimit] = useState(5);
+  const [subscriptionTier, setSubscriptionTier] = useState('free');
   const { weightUnit, toggleWeightUnit } = useSettingsStore();
 
   useEffect(() => {
@@ -29,6 +32,13 @@ export default function ProfileScreen() {
     setIsLoggedIn(!!session);
     setUserEmail(session?.user?.email || null);
     setIsLoading(false);
+
+    if (session) {
+      const { used, limit, tier } = await getApiUsageToday();
+      setUsageUsed(used);
+      setUsageLimit(limit);
+      setSubscriptionTier(tier);
+    }
   };
 
   const handleSignOut = async () => {
@@ -88,6 +98,8 @@ export default function ProfileScreen() {
       <TouchableOpacity
         style={styles.setupButton}
         onPress={() => router.push('/onboarding')}
+        accessibilityRole="button"
+        accessibilityLabel="Setup or edit your fitness profile"
       >
         <FontAwesome name="sliders" size={20} color={Colors.text} />
         <Text style={styles.setupButtonText}>Setup / Edit Fitness Profile</Text>
@@ -96,7 +108,12 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fitness Profile</Text>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/onboarding/experience')}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/onboarding/experience')}
+          accessibilityRole="button"
+          accessibilityLabel="Edit experience level"
+        >
           <View style={styles.menuItemLeft}>
             <FontAwesome name="signal" size={18} color={Colors.primary} />
             <Text style={styles.menuItemText}>Experience Level</Text>
@@ -106,7 +123,12 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/onboarding/skills')}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/onboarding/skills')}
+          accessibilityRole="button"
+          accessibilityLabel="Edit movement skills"
+        >
           <View style={styles.menuItemLeft}>
             <FontAwesome name="list-ul" size={18} color={Colors.primary} />
             <Text style={styles.menuItemText}>Movement Skills</Text>
@@ -114,7 +136,12 @@ export default function ProfileScreen() {
           <FontAwesome name="chevron-right" size={14} color={Colors.textMuted} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/onboarding/strength')}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/onboarding/strength')}
+          accessibilityRole="button"
+          accessibilityLabel="Edit 1 rep max numbers"
+        >
           <View style={styles.menuItemLeft}>
             <FontAwesome name="trophy" size={18} color={Colors.primary} />
             <Text style={styles.menuItemText}>1RM Numbers</Text>
@@ -128,12 +155,16 @@ export default function ProfileScreen() {
 
         <View style={styles.subscriptionCard}>
           <View style={styles.subscriptionHeader}>
-            <Text style={styles.subscriptionTier}>Free Tier</Text>
+            <Text style={styles.subscriptionTier}>{subscriptionTier === 'pro' ? 'Pro' : 'Free'} Tier</Text>
             <View style={styles.usageBadge}>
-              <Text style={styles.usageText}>3/5 analyses used</Text>
+              <Text style={styles.usageText}>{usageUsed}/{usageLimit} analyses today</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.upgradeButton}>
+          <TouchableOpacity
+            style={styles.upgradeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade to Pro subscription"
+          >
             <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
           </TouchableOpacity>
         </View>
@@ -142,7 +173,12 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Settings</Text>
 
-        <TouchableOpacity style={styles.menuItem} onPress={toggleWeightUnit}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={toggleWeightUnit}
+          accessibilityRole="button"
+          accessibilityLabel={`Weight unit, currently ${weightUnit}. Tap to switch.`}
+        >
           <View style={styles.menuItemLeft}>
             <FontAwesome name="balance-scale" size={18} color={Colors.primary} />
             <Text style={styles.menuItemText}>Weight Unit</Text>
@@ -161,7 +197,12 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
 
-        <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleSignOut}>
+        <TouchableOpacity
+          style={[styles.menuItem, styles.logoutItem]}
+          onPress={handleSignOut}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out of your account"
+        >
           <View style={styles.menuItemLeft}>
             <FontAwesome name="sign-out" size={18} color={Colors.error} />
             <Text style={[styles.menuItemText, styles.logoutText]}>Sign Out</Text>

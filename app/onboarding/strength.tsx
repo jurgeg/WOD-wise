@@ -55,7 +55,7 @@ export default function StrengthScreen() {
     return numericLifts;
   };
 
-  const handleFinishOnboarding = async () => {
+  const handleSaveAndFinish = async () => {
     setIsSaving(true);
     const numericLifts = getNumericLiftsInLbs();
     saveLiftsToStore(numericLifts);
@@ -71,31 +71,7 @@ export default function StrengthScreen() {
     if (error) {
       Alert.alert('Save Failed', error.message);
     } else {
-      Alert.alert('Profile Complete!', 'Your fitness profile has been saved. You can now get personalized WOD strategies.', [
-        { text: 'Start Using WODwise', onPress: () => router.replace('/(tabs)') }
-      ]);
-    }
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    const numericLifts = getNumericLiftsInLbs();
-    saveLiftsToStore(numericLifts);
-
-    const liftsData = Object.entries(numericLifts).map(([liftName, weightLbs]) => ({
-      liftName,
-      weightLbs,
-    }));
-
-    const { error } = await saveStrengthNumbers(liftsData);
-    setIsSaving(false);
-
-    if (error) {
-      Alert.alert('Save Failed', error.message);
-    } else {
-      Alert.alert('Saved!', 'Your 1RM numbers have been updated.', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      router.replace('/(tabs)');
     }
   };
 
@@ -152,26 +128,18 @@ export default function StrengthScreen() {
           {filledCount} of {TRACKED_LIFTS.length} lifts entered • You can update these anytime
         </Text>
         <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-          onPress={handleSave}
+          style={[styles.continueButton, isSaving && styles.buttonDisabled]}
+          onPress={handleSaveAndFinish}
           disabled={isSaving}
         >
           {isSaving ? (
             <ActivityIndicator color={Colors.text} />
           ) : (
             <>
+              <Text style={styles.continueButtonText}>Save & Finish Setup</Text>
               <FontAwesome name="check" size={16} color={Colors.text} />
-              <Text style={styles.continueButtonText}>Save</Text>
             </>
           )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.continueButton, isSaving && styles.buttonDisabled]}
-          onPress={handleFinishOnboarding}
-          disabled={isSaving}
-        >
-          <Text style={styles.continueButtonText}>Finish Setup</Text>
-          <FontAwesome name="check" size={16} color={Colors.text} />
         </TouchableOpacity>
       </View>
       </ScrollView>
@@ -274,15 +242,6 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 8,
     gap: 12,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.success,
-    paddingVertical: 16,
-    borderRadius: 12,
   },
   buttonDisabled: {
     opacity: 0.6,

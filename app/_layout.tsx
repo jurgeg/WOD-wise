@@ -4,7 +4,10 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { View } from 'react-native';
 import { Colors } from '@/lib/constants';
+import { AppErrorBoundary } from '@/components/ErrorBoundary';
+import { ToastContainer } from '@/components/ui';
 
 export {
   ErrorBoundary,
@@ -37,7 +40,14 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <AppErrorBoundary>
+      <View style={{ flex: 1 }}>
+        <RootLayoutNav />
+        <ToastContainer />
+      </View>
+    </AppErrorBoundary>
+  );
 }
 
 function RootLayoutNav() {

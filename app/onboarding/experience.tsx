@@ -26,14 +26,7 @@ export default function ExperienceScreen() {
 
   const levels = Object.entries(EXPERIENCE_LEVELS) as [ExperienceLevel, typeof EXPERIENCE_LEVELS[ExperienceLevel]][];
 
-  const handleContinue = () => {
-    if (selectedLevel) {
-      setExperience(selectedLevel, yearsExperience);
-    }
-    router.push('/onboarding/skills');
-  };
-
-  const handleSave = async () => {
+  const handleSaveAndContinue = async () => {
     if (!selectedLevel) {
       Alert.alert('Select a level', 'Please select your experience level.');
       return;
@@ -52,9 +45,7 @@ export default function ExperienceScreen() {
     if (error) {
       Alert.alert('Save Failed', error.message);
     } else {
-      Alert.alert('Saved!', 'Your experience level has been updated.', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      router.push('/onboarding/skills');
     }
   };
 
@@ -118,26 +109,18 @@ export default function ExperienceScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.saveButton, (!selectedLevel || isSaving) && styles.continueButtonDisabled]}
-          onPress={handleSave}
+          style={[styles.continueButton, (!selectedLevel || isSaving) && styles.continueButtonDisabled]}
+          onPress={handleSaveAndContinue}
           disabled={!selectedLevel || isSaving}
         >
           {isSaving ? (
             <ActivityIndicator color={Colors.text} />
           ) : (
             <>
-              <FontAwesome name="check" size={16} color={Colors.text} />
-              <Text style={styles.continueButtonText}>Save</Text>
+              <Text style={styles.continueButtonText}>Save & Continue</Text>
+              <FontAwesome name="arrow-right" size={16} color={Colors.text} />
             </>
           )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.continueButton, !selectedLevel && styles.continueButtonDisabled]}
-          onPress={handleContinue}
-          disabled={!selectedLevel}
-        >
-          <Text style={styles.continueButtonText}>Continue to Skills</Text>
-          <FontAwesome name="arrow-right" size={16} color={Colors.text} />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -245,15 +228,6 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 'auto',
     gap: 12,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.success,
-    paddingVertical: 16,
-    borderRadius: 12,
   },
   continueButton: {
     flexDirection: 'row',

@@ -2,9 +2,11 @@ import 'react-native-url-polyfill/auto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { validateExperienceLevel, validateYearsExperience, validateMovementSkills, validateStrengthNumbers, validateLimitations, ValidationError } from './validation';
+import { env } from './env';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = env.supabaseUrl;
+const supabaseAnonKey = env.supabaseAnonKey;
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
@@ -50,7 +52,7 @@ function getSupabaseClient(): SupabaseClient | null {
   }
 
   if (!_supabase) {
-    _supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+    _supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: ExpoSecureStoreAdapter,
         autoRefreshToken: true,
@@ -93,6 +95,15 @@ export async function signIn(email: string, password: string) {
     password,
   });
   return { data, error };
+}
+
+export async function resetPasswordForEmail(email: string) {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { error: new Error('Supabase not configured') };
+  }
+  const { error } = await client.auth.resetPasswordForEmail(email);
+  return { error };
 }
 
 export async function signOut() {
@@ -155,19 +166,41 @@ export async function saveProfile(data: ProfileData) {
     return { error: new Error('User not authenticated') };
   }
 
-  const { error } = await client
-    .from('profiles')
-    .upsert({
-      id: user.id,
-      experience_level: data.experienceLevel,
-      crossfit_years: data.yearsExperience,
-      updated_at: new Date().toISOString(),
-    });
+  try {
+    const level = validateExperienceLevel(data.experienceLevel);
+    const years = validateYearsExperience(data.yearsExperience);
 
-  return { error };
+    const { error } = await client
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        experience_level: level,
+        crossfit_years: years,
+        updated_at: new Date().toISOString(),
+      });
+
+    return { error };
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return { error: err };
+    }
+    throw err;
+  }
 }
 
 export async function saveMovementSkills(skills: SkillData[]) {
+  // Validate input before touching the database
+  try {
+    if (skills.length > 0) {
+      validateMovementSkills(skills);
+    }
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return { error: err };
+    }
+    throw err;
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { error: new Error('Supabase not configured') };
@@ -178,31 +211,56 @@ export async function saveMovementSkills(skills: SkillData[]) {
     return { error: new Error('User not authenticated') };
   }
 
-  // Delete existing skills first
-  await client
-    .from('movement_skills')
-    .delete()
-    .eq('user_id', user.id);
-
+  // If clearing all skills, just delete
   if (skills.length === 0) {
-    return { error: null };
+    const { error } = await client
+      .from('movement_skills')
+      .delete()
+      .eq('user_id', user.id);
+    return { error };
   }
 
-  const { error } = await client
+  // Upsert all skills (safe — no data loss if this fails partway)
+  const { error: upsertError } = await client
     .from('movement_skills')
-    .insert(
+    .upsert(
       skills.map((skill) => ({
         user_id: user.id,
         movement_name: skill.movementName,
         skill_level: skill.skillLevel,
         category: skill.category || null,
-      }))
+      })),
+      { onConflict: 'user_id,movement_name' }
     );
 
-  return { error };
+  if (upsertError) {
+    return { error: upsertError };
+  }
+
+  // Clean up movements that were removed (only AFTER successful upsert)
+  const movementNames = skills.map((s) => s.movementName);
+  const { error: cleanupError } = await client
+    .from('movement_skills')
+    .delete()
+    .eq('user_id', user.id)
+    .not('movement_name', 'in', `(${movementNames.map((n) => `"${n}"`).join(',')})`);
+
+  return { error: cleanupError };
 }
 
 export async function saveStrengthNumbers(lifts: StrengthData[]) {
+  // Validate input before touching the database
+  try {
+    if (lifts.length > 0) {
+      validateStrengthNumbers(lifts);
+    }
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return { error: err };
+    }
+    throw err;
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { error: new Error('Supabase not configured') };
@@ -213,30 +271,55 @@ export async function saveStrengthNumbers(lifts: StrengthData[]) {
     return { error: new Error('User not authenticated') };
   }
 
-  // Delete existing strength numbers first
-  await client
-    .from('strength_numbers')
-    .delete()
-    .eq('user_id', user.id);
-
+  // If clearing all lifts, just delete
   if (lifts.length === 0) {
-    return { error: null };
+    const { error } = await client
+      .from('strength_numbers')
+      .delete()
+      .eq('user_id', user.id);
+    return { error };
   }
 
-  const { error } = await client
+  // Upsert all lifts (safe — no data loss if this fails partway)
+  const { error: upsertError } = await client
     .from('strength_numbers')
-    .insert(
+    .upsert(
       lifts.map((lift) => ({
         user_id: user.id,
         lift_name: lift.liftName,
         weight_lbs: lift.weightLbs,
-      }))
+      })),
+      { onConflict: 'user_id,lift_name' }
     );
 
-  return { error };
+  if (upsertError) {
+    return { error: upsertError };
+  }
+
+  // Clean up lifts that were removed (only AFTER successful upsert)
+  const liftNames = lifts.map((l) => l.liftName);
+  const { error: cleanupError } = await client
+    .from('strength_numbers')
+    .delete()
+    .eq('user_id', user.id)
+    .not('lift_name', 'in', `(${liftNames.map((n) => `"${n}"`).join(',')})`);
+
+  return { error: cleanupError };
 }
 
 export async function saveLimitations(limitations: LimitationData[]) {
+  // Validate input before touching the database
+  try {
+    if (limitations.length > 0) {
+      validateLimitations(limitations);
+    }
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return { error: err };
+    }
+    throw err;
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { error: new Error('Supabase not configured') };
@@ -247,27 +330,45 @@ export async function saveLimitations(limitations: LimitationData[]) {
     return { error: new Error('User not authenticated') };
   }
 
-  // Delete existing limitations first
-  await client
-    .from('limitations')
-    .delete()
-    .eq('user_id', user.id);
-
+  // Limitations don't have a natural unique key (user could have multiple injuries),
+  // so we use a transaction-safe approach: insert new ones first, then delete old ones.
   if (limitations.length === 0) {
-    return { error: null };
+    const { error } = await client
+      .from('limitations')
+      .delete()
+      .eq('user_id', user.id);
+    return { error };
   }
 
-  const { error } = await client
-    .from('limitations')
-    .insert(
-      limitations.map((lim) => ({
-        user_id: user.id,
-        limitation_type: lim.type,
-        description: lim.description,
-      }))
-    );
+  // Insert new limitations
+  const newRows = limitations.map((lim) => ({
+    user_id: user.id,
+    limitation_type: lim.type,
+    description: lim.description,
+  }));
 
-  return { error };
+  const { data: inserted, error: insertError } = await client
+    .from('limitations')
+    .insert(newRows)
+    .select('id');
+
+  if (insertError) {
+    return { error: insertError };
+  }
+
+  // Delete old limitations (only AFTER successful insert of new ones)
+  const newIds = (inserted || []).map((row: { id: string }) => row.id);
+  if (newIds.length > 0) {
+    const { error: cleanupError } = await client
+      .from('limitations')
+      .delete()
+      .eq('user_id', user.id)
+      .not('id', 'in', `(${newIds.join(',')})`);
+
+    return { error: cleanupError };
+  }
+
+  return { error: null };
 }
 
 // Load user profile for strategy generation
@@ -352,7 +453,128 @@ export async function loadUserProfile(): Promise<{ profile: UserProfile | null; 
   }
 }
 
-// WOD History functions
+// --- User Stats ---
+
+// Get user workout stats (streak + weekly completed days)
+export async function getUserWorkoutStats(): Promise<{
+  streak: number;
+  completedDays: number[];
+  error: Error | null;
+}> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { streak: 0, completedDays: [], error: null };
+  }
+
+  const { user } = await getCurrentUser();
+  if (!user) {
+    return { streak: 0, completedDays: [], error: null };
+  }
+
+  try {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const { data, error } = await client
+      .from('wod_history')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', ninetyDaysAgo.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return { streak: 0, completedDays: [], error };
+    }
+
+    // Unique dates with workouts
+    const workoutDates = new Set(
+      data.map((row: { created_at: string }) =>
+        new Date(row.created_at).toISOString().split('T')[0]
+      )
+    );
+
+    // Streak: consecutive days going backwards from today
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - i);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (workoutDates.has(dateStr)) {
+        streak++;
+      } else if (i > 0) {
+        break; // Allow today to not have a workout yet
+      }
+    }
+
+    // Completed days this week (0=Mon ... 6=Sun)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(now);
+    monday.setDate(monday.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const completedDays: number[] = [];
+    workoutDates.forEach((dateStr) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      if (date >= monday) {
+        const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
+        if (!completedDays.includes(dayIndex)) {
+          completedDays.push(dayIndex);
+        }
+      }
+    });
+
+    return { streak, completedDays: completedDays.sort(), error: null };
+  } catch (err) {
+    return { streak: 0, completedDays: [], error: err instanceof Error ? err : new Error('Failed to load stats') };
+  }
+}
+
+// Get API usage for today
+export async function getApiUsageToday(): Promise<{
+  used: number;
+  limit: number;
+  tier: string;
+  error: Error | null;
+}> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { used: 0, limit: 5, tier: 'free', error: null };
+  }
+
+  const { user } = await getCurrentUser();
+  if (!user) {
+    return { used: 0, limit: 5, tier: 'free', error: null };
+  }
+
+  try {
+    const { data: profile } = await client
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', user.id)
+      .single();
+
+    const tier = profile?.subscription_tier || 'free';
+    const limit = tier === 'pro' ? 100 : 5;
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data: usage } = await client
+      .from('api_usage')
+      .select('request_count')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .single();
+
+    const used = usage?.request_count || 0;
+    return { used, limit, tier, error: null };
+  } catch (err) {
+    return { used: 0, limit: 5, tier: 'free', error: err instanceof Error ? err : new Error('Failed to load usage') };
+  }
+}
+
+// --- WOD History ---
 import type { ParsedWorkout, WodStrategy } from './types';
 
 interface WodHistoryEntry {
@@ -386,35 +608,29 @@ export async function saveWodHistory(entry: WodHistoryEntry) {
   return { error };
 }
 
-export async function loadWodHistory() {
+export async function loadWodHistory(options: { limit?: number; offset?: number } = {}) {
   const client = getSupabaseClient();
   if (!client) {
-    return { history: [], error: new Error('Supabase not configured') };
+    return { history: [], hasMore: false, error: new Error('Supabase not configured') };
   }
 
   const { user } = await getCurrentUser();
   if (!user) {
-    return { history: [], error: new Error('User not authenticated') };
+    return { history: [], hasMore: false, error: new Error('User not authenticated') };
   }
 
-  // Cleanup: delete entries older than 13 months
-  const thirteenMonthsAgo = new Date();
-  thirteenMonthsAgo.setMonth(thirteenMonthsAgo.getMonth() - 13);
-
-  await client
-    .from('wod_history')
-    .delete()
-    .eq('user_id', user.id)
-    .lt('created_at', thirteenMonthsAgo.toISOString());
+  const pageLimit = options.limit || 20;
+  const offset = options.offset || 0;
 
   const { data, error } = await client
     .from('wod_history')
     .select('*')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageLimit - 1);
 
   if (error) {
-    return { history: [], error };
+    return { history: [], hasMore: false, error };
   }
 
   const history = data.map((row: {
@@ -433,5 +649,5 @@ export async function loadWodHistory() {
     createdAt: row.created_at,
   }));
 
-  return { history, error: null };
+  return { history, hasMore: data.length === pageLimit, error: null };
 }

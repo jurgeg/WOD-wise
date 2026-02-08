@@ -16,6 +16,13 @@ npm start
 npm run ios
 npm run android
 npm run web
+
+# Code quality
+npm run lint          # Check for linting issues
+npm run lint:fix      # Auto-fix linting issues
+npm run format        # Format all files with Prettier
+npm run format:check  # Check formatting without modifying
+npm run typecheck     # Run TypeScript type checker
 ```
 
 ## Architecture
@@ -91,3 +98,31 @@ supabase db push
 - Pro: 100/day
 
 Upgrade via SQL: `UPDATE profiles SET subscription_tier = 'pro' WHERE id = 'user-uuid';`
+
+## Coding Conventions
+
+### Imports
+- Always use `@/` path aliases (e.g., `@/lib/constants`, `@/components/ui`)
+- Group imports: React → React Native → Expo → Third-party → Local
+
+### Error Handling
+- Use `withRetry()` from `lib/retry.ts` for API calls
+- Use `toast` from `components/ui/Toast` for user-facing notifications
+- Use `Alert.alert()` only for blocking confirmations (e.g., save failures)
+- Validate inputs via `lib/validation.ts` before DB writes
+
+### Components
+- UI primitives go in `components/ui/` with barrel export in `index.ts`
+- Screen-specific components go in `components/<feature>/`
+- All interactive elements must have `accessibilityRole` and `accessibilityLabel`
+- Minimum touch target: 44x44pt (iOS HIG)
+
+### State Management
+- Zustand for client-side state (`store/`)
+- Supabase for persistent server state (`lib/supabase.ts`)
+- Use `store/workout.ts` to pass data between WOD flow screens (not URL params)
+
+### Styling
+- Use `Colors` from `lib/constants.ts` for all colors (no hardcoded hex values)
+- Use `Spacing`, `BorderRadius`, `Typography` from `lib/design.ts`
+- Prefer `StyleSheet.create()` over inline styles

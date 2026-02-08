@@ -12,6 +12,7 @@ import { router, useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Colors } from '@/lib/constants';
 import { loadWodHistory, getSession } from '@/lib/supabase';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import type { ParsedWorkout, WodStrategy } from '@/lib/types';
 
 interface HistoryEntry {
@@ -94,8 +95,9 @@ export default function HistoryScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={styles.contentContainer}>
+          <Text style={styles.sectionTitle}>Recent Workouts</Text>
+          <SkeletonList count={4} />
         </View>
       </View>
     );

@@ -1,15 +1,18 @@
 import type { ParsedWorkout, WodStrategy } from './types';
 import { getSession } from './supabase';
+import { fetchWithTimeout, withRetry, RetryableError } from './retry';
+import { env } from './env';
+import { sanitizeString } from './validation';
 
 // Edge Function URL - your Supabase project URL + function name
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/claude-proxy`;
+const EDGE_FUNCTION_URL = `${env.supabaseUrl}/functions/v1/claude-proxy`;
 
 // For backward compatibility during development - can still use direct API
-const CLAUDE_API_KEY = process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
-const USE_EDGE_FUNCTION = !CLAUDE_API_KEY; // Prefer Edge Function when no local key
+// In production, env.claudeApiKey is always undefined (blocked by env.ts)
+const CLAUDE_API_KEY = env.claudeApiKey;
+const USE_EDGE_FUNCTION = !CLAUDE_API_KEY;
 
-export const isClaudeConfigured = Boolean(SUPABASE_URL);
+export const isClaudeConfigured = Boolean(env.supabaseUrl);
 
 interface ApiResponse<T> {
   data?: T;
@@ -33,33 +36,49 @@ async function callEdgeFunction<T>(action: string, payload: Record<string, unkno
     throw new Error('You must be signed in to analyze workouts');
   }
 
-  const response = await fetch(EDGE_FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+  return withRetry(
+    async () => {
+      const response = await fetchWithTimeout(
+        EDGE_FUNCTION_URL,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': env.supabaseAnonKey,
+          },
+          body: JSON.stringify({
+            action,
+            ...payload,
+          }),
+        },
+        60000 // 60s timeout for AI calls
+      );
+
+      const result: ApiResponse<T> = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new RetryableError(
+            result.message || 'Daily limit reached. Upgrade to Pro for more analyses!',
+            429,
+            false // Don't retry rate limits
+          );
+        }
+        throw new RetryableError(
+          result.error || 'API request failed',
+          response.status
+        );
+      }
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result.data as T;
     },
-    body: JSON.stringify({
-      action,
-      ...payload,
-    }),
-  });
-
-  const result: ApiResponse<T> = await response.json();
-
-  if (!response.ok) {
-    if (response.status === 429) {
-      throw new Error(result.message || 'Daily limit reached. Upgrade to Pro for more analyses!');
-    }
-    throw new Error(result.error || 'API request failed');
-  }
-
-  if (result.error) {
-    throw new Error(result.error);
-  }
-
-  return result.data as T;
+    { maxRetries: 2 } // Limit retries for expensive AI calls
+  );
 }
 
 // Direct Claude API call (only for development when CLAUDE_API_KEY is set)
@@ -68,20 +87,24 @@ async function callClaudeDirect(messages: unknown[], systemPrompt: string): Prom
     throw new Error('Claude API key not configured');
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': CLAUDE_API_KEY,
-      'anthropic-version': '2023-06-01',
+  const response = await fetchWithTimeout(
+    'https://api.anthropic.com/v1/messages',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages,
+      }),
     },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages,
-    }),
-  });
+    60000 // 60s timeout for AI calls
+  );
 
   if (!response.ok) {
     const error = await response.text();
@@ -208,7 +231,7 @@ USER PROFILE:
 - Experience Level: ${userProfile.experienceLevel || 'Not specified'}
 - Skills: ${userProfile.skills ? JSON.stringify(userProfile.skills) : 'Not specified'}
 - Strength Numbers (1RM in lbs): ${userProfile.strengthNumbers ? JSON.stringify(userProfile.strengthNumbers) : 'Not specified'}
-- Limitations/Injuries: ${userProfile.limitations?.length ? userProfile.limitations.join(', ') : 'None specified'}
+- Limitations/Injuries: ${userProfile.limitations?.length ? userProfile.limitations.map(l => sanitizeString(l, 200)).join(', ') : 'None specified'}
 
 Provide a personalized strategy for this workout based on the user's profile. Consider their skill levels and any limitations when suggesting scaling or substitutions.`;
 
